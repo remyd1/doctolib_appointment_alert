@@ -20,7 +20,12 @@ def get_response(url):
     }
     req = urllib.request.Request(url=url, headers=header)
     response_json = urllib.request.urlopen(req).read().decode()
-    response = json.loads(response_json)
+    try:
+        response = json.loads(response_json)
+    except Exception:
+        print("Error parsing response...")
+        print(response_json)
+        raise
     return response
 
 
@@ -56,7 +61,6 @@ def find_slot(start_date, end_date, url):
 
 
 def notify(slots, booking_url, sender_email, sender_pw, recipient_email):
-
     message_body = (
         f"New doctor appointment slots on {booking_url}: {slots}, please go immediately"
         " and book them"
@@ -139,17 +143,28 @@ def main(argv=None):
         help="Email sender of notification",
     )
 
+    parser.add_argument("--pwd", required=True, help="App password to google mail")
+
     arguments = parser.parse_args(argv)
     assert (
         "gmail" in arguments.mail_from
     ), "Sender must be a gmail address. if not, change smtp server"
 
-    pwd = getpass("SMTP password for the sender")
+    pwd = arguments.pwd
 
     url = arguments.api_url
 
     slots = []
     wait_in_sec = 60 * 5
+
+    # Notify that we start looking
+    send_mail(
+        arguments.mail_from,
+        pwd,
+        arguments.mail_to,
+        message="Suche nach Terminen auf Doctolib",
+    )
+
     while True and not slots:
         slots = find_slot(arguments.start_date, arguments.end_date, url)
         if slots:
